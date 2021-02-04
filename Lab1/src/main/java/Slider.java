@@ -9,7 +9,7 @@ public class Slider implements ChangeListener {
 
     private static final int MIN_VALUE = 10;
     private static final int MAX_VALUE = 90;
-    private static final int START_VALUE = 50;
+    private static final int START_VALUE = 20;
     private static final int MINOR_SPACING = 1;
     private static final int MAJOR_SPACING = 10;
     private static final int FRAME_WIDTH = 800;
@@ -93,7 +93,7 @@ public class Slider implements ChangeListener {
 
     private synchronized void changeSliderValueMin() throws InterruptedException {
 
-        while(sliderValue < MAX_VALUE) {
+        while(sliderValue > MIN_VALUE) {
             sliderValue--;
             slider.setValue(sliderValue);
             wait(300);
