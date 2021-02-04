@@ -4,6 +4,7 @@ import javax.swing.event.ChangeListener;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class Slider implements ChangeListener {
 
@@ -23,16 +24,23 @@ public class Slider implements ChangeListener {
     private JPanel panel;
     private JLabel label;
     private JSlider slider;
-    private JButton button;
+    private JButton button, bStartIncr, bStartDecr, bStopIncr, bStopDecr;
     private int sliderValue;
+    private AtomicBoolean threadIncrFlag, threadDecrFlag;
 
     public Slider() {
         frame = new JFrame("Parallel slider");
         panel = new JPanel();
         label = new JLabel();
         button = new JButton("Click");
+        bStartIncr = new JButton("Start incr");
+        bStartDecr = new JButton("Start decr");
+        bStopIncr = new JButton("Stop incr");
+        bStopDecr = new JButton("Stop decr");
         slider = new JSlider(MIN_VALUE, MAX_VALUE, START_VALUE);
         sliderValue = START_VALUE;
+        threadIncrFlag = new AtomicBoolean(false);
+        threadDecrFlag = new AtomicBoolean(false);
 
         slider.setPreferredSize(new Dimension(SLIDER_WIDTH, SLIDER_HEIGHT));
         slider.setPaintTicks(true);
@@ -44,56 +52,101 @@ public class Slider implements ChangeListener {
 
         label.setText("Current slider value is:" + slider.getValue());
 
+        bStartIncr.setPreferredSize(new Dimension(BUTTON_WIDTH, BUTTON_HEIGHT));
+        bStartDecr.setPreferredSize(new Dimension(BUTTON_WIDTH, BUTTON_HEIGHT));
+        bStopIncr.setPreferredSize(new Dimension(BUTTON_WIDTH, BUTTON_HEIGHT));
+        bStopDecr.setPreferredSize(new Dimension(BUTTON_WIDTH, BUTTON_HEIGHT));
+
         button.setPreferredSize(new Dimension(BUTTON_WIDTH, BUTTON_HEIGHT));
-        button.addActionListener(e -> {
 
-            Thread sliderValueChangerMax = new Thread(() -> {
 
-                System.out.println("123");
+        bStartIncr.addActionListener(e -> {
+            Thread thread = createThreadIncr();
+            thread.start();
+        });
 
-                try {
-                    changeSliderValueMax();
-                } catch (InterruptedException interruptedException) {
-                    interruptedException.printStackTrace();
-                }
-            });
+        bStartDecr.addActionListener(e -> {
+            Thread thread = createThreadDecr();
+            thread.start();
+        });
 
-            Thread sliderValueChangerMin = new Thread(() -> {
+        bStopIncr.addActionListener(e -> {
+            threadIncrFlag.set(false);
+        });
 
-                System.out.println("321");
-
-                try {
-                    changeSliderValueMin();
-                } catch (InterruptedException interruptedException) {
-                    interruptedException.printStackTrace();
-                }
-            });
-
-            sliderValueChangerMax.start();
-            sliderValueChangerMin.start();
+        bStopDecr.addActionListener(e -> {
+            threadDecrFlag.set(false);
         });
 
         panel.add(slider);
         panel.add(label);
         panel.add(button);
+        panel.add(bStartIncr);
+        panel.add(bStartDecr);
+        panel.add(bStopIncr);
+        panel.add(bStopDecr);
         frame.add(panel);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setSize(FRAME_WIDTH, FRAME_HEIGHT);
         frame.setVisible(true);
     }
 
-    private synchronized void changeSliderValueMax() throws InterruptedException {
+    private Thread createThreadIncr() {
 
-        while(sliderValue < MAX_VALUE) {
+        Thread thread = new Thread(() -> {
+            System.out.println("123");
+
+            try {
+                changeSliderValueIncr();
+            } catch (InterruptedException interruptedException) {
+                interruptedException.printStackTrace();
+            }
+        });
+
+        thread.setPriority(1);
+        return thread;
+    }
+
+    private Thread createThreadDecr() {
+
+        Thread thread = new Thread(() -> {
+            System.out.println("321");
+
+            try {
+                changeSliderValueDecr();
+            } catch (InterruptedException interruptedException) {
+                interruptedException.printStackTrace();
+            }
+        });
+
+        thread.setPriority(10);
+        return thread;
+    }
+
+    private synchronized void changeSliderValueIncr() throws InterruptedException {
+
+        if(threadIncrFlag.get()) {
+            return;
+        }
+
+        threadIncrFlag.set(true);
+
+        while(sliderValue < MAX_VALUE && threadIncrFlag.get()) {
             sliderValue++;
             slider.setValue(sliderValue);
             wait(400);
         }
     }
 
-    private synchronized void changeSliderValueMin() throws InterruptedException {
+    private synchronized void changeSliderValueDecr() throws InterruptedException {
 
-        while(sliderValue > MIN_VALUE) {
+        if(threadDecrFlag.get()) {
+            return;
+        }
+
+        threadDecrFlag.set(true);
+
+        while(sliderValue > MIN_VALUE && threadDecrFlag.get()) {
             sliderValue--;
             slider.setValue(sliderValue);
             wait(300);
