@@ -2,8 +2,7 @@ import javax.swing.*;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class Slider implements ChangeListener {
@@ -19,20 +18,22 @@ public class Slider implements ChangeListener {
     private static final int SLIDER_HEIGHT = 200;
     private static final int BUTTON_WIDTH = 100;
     private static final int BUTTON_HEIGHT = 50;
+    private static final int INCR_DELAY = 150;
+    private static final int DECR_DELAY = 100;
 
-    private JFrame frame;
-    private JPanel panel;
-    private JLabel label;
-    private JSlider slider;
-    private JButton button, bStartIncr, bStartDecr, bStopIncr, bStopDecr;
+    private final JFrame frame;
+    private final JPanel panel;
+    private final JLabel label;
+    private final JSlider slider;
+    private final JButton bStartIncr, bStartDecr, bStopIncr, bStopDecr;
     private int sliderValue;
-    private AtomicBoolean threadIncrFlag, threadDecrFlag;
+    private final AtomicBoolean threadIncrFlag, threadDecrFlag;
+    private final Semaphore semaphore;
 
     public Slider() {
         frame = new JFrame("Parallel slider");
         panel = new JPanel();
         label = new JLabel();
-        button = new JButton("Click");
         bStartIncr = new JButton("Start incr");
         bStartDecr = new JButton("Start decr");
         bStopIncr = new JButton("Stop incr");
@@ -41,6 +42,7 @@ public class Slider implements ChangeListener {
         sliderValue = START_VALUE;
         threadIncrFlag = new AtomicBoolean(false);
         threadDecrFlag = new AtomicBoolean(false);
+        semaphore = new Semaphore(1);
 
         slider.setPreferredSize(new Dimension(SLIDER_WIDTH, SLIDER_HEIGHT));
         slider.setPaintTicks(true);
@@ -57,9 +59,6 @@ public class Slider implements ChangeListener {
         bStopIncr.setPreferredSize(new Dimension(BUTTON_WIDTH, BUTTON_HEIGHT));
         bStopDecr.setPreferredSize(new Dimension(BUTTON_WIDTH, BUTTON_HEIGHT));
 
-        button.setPreferredSize(new Dimension(BUTTON_WIDTH, BUTTON_HEIGHT));
-
-
         bStartIncr.addActionListener(e -> {
             Thread thread = createThreadIncr();
             thread.start();
@@ -71,16 +70,23 @@ public class Slider implements ChangeListener {
         });
 
         bStopIncr.addActionListener(e -> {
+            if(semaphore.availablePermits() == 0) {
+                semaphore.release();
+            }
             threadIncrFlag.set(false);
+            bStopDecr.setEnabled(true);
         });
 
         bStopDecr.addActionListener(e -> {
+            if(semaphore.availablePermits() == 0) {
+                semaphore.release();
+            }
             threadDecrFlag.set(false);
+            bStopIncr.setEnabled(true);
         });
 
         panel.add(slider);
         panel.add(label);
-        panel.add(button);
         panel.add(bStartIncr);
         panel.add(bStartDecr);
         panel.add(bStopIncr);
@@ -94,8 +100,6 @@ public class Slider implements ChangeListener {
     private Thread createThreadIncr() {
 
         Thread thread = new Thread(() -> {
-            System.out.println("123");
-
             try {
                 changeSliderValueIncr();
             } catch (InterruptedException interruptedException) {
@@ -110,8 +114,6 @@ public class Slider implements ChangeListener {
     private Thread createThreadDecr() {
 
         Thread thread = new Thread(() -> {
-            System.out.println("321");
-
             try {
                 changeSliderValueDecr();
             } catch (InterruptedException interruptedException) {
@@ -129,12 +131,26 @@ public class Slider implements ChangeListener {
             return;
         }
 
+        if(semaphore.availablePermits() <= 0) {
+            new Thread(() -> JOptionPane.showMessageDialog(frame, "The slider is currently busy by another thread")).start();
+            return;
+        }
+
+        bStopDecr.setEnabled(false);
+        semaphore.acquire();
         threadIncrFlag.set(true);
 
         while(sliderValue < MAX_VALUE && threadIncrFlag.get()) {
             sliderValue++;
             slider.setValue(sliderValue);
-            wait(400);
+            wait(INCR_DELAY);
+        }
+
+        bStopDecr.setEnabled(true);
+        threadIncrFlag.set(false);
+
+        if(semaphore.availablePermits() == 0) {
+            semaphore.release();
         }
     }
 
@@ -144,17 +160,27 @@ public class Slider implements ChangeListener {
             return;
         }
 
+        if(semaphore.availablePermits() <= 0) {
+            new Thread(() -> JOptionPane.showMessageDialog(frame, "The slider is currently busy by another thread")).start();
+            return;
+        }
+
+        bStopIncr.setEnabled(false);
+        semaphore.acquire();
         threadDecrFlag.set(true);
 
         while(sliderValue > MIN_VALUE && threadDecrFlag.get()) {
             sliderValue--;
             slider.setValue(sliderValue);
-            wait(300);
+            wait(DECR_DELAY);
         }
-    }
 
-    public void setSliderValue(int value) {
-        slider.setValue(value);
+        bStopIncr.setEnabled(true);
+        threadDecrFlag.set(false);
+
+        if(semaphore.availablePermits() == 0) {
+            semaphore.release();
+        }
     }
 
     @Override
