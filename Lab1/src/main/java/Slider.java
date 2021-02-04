@@ -2,6 +2,8 @@ import javax.swing.*;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 
 public class Slider implements ChangeListener {
 
@@ -22,6 +24,7 @@ public class Slider implements ChangeListener {
     private JLabel label;
     private JSlider slider;
     private JButton button;
+    private int sliderValue;
 
     public Slider() {
         frame = new JFrame("Parallel slider");
@@ -29,6 +32,7 @@ public class Slider implements ChangeListener {
         label = new JLabel();
         button = new JButton("Click");
         slider = new JSlider(MIN_VALUE, MAX_VALUE, START_VALUE);
+        sliderValue = START_VALUE;
 
         slider.setPreferredSize(new Dimension(SLIDER_WIDTH, SLIDER_HEIGHT));
         slider.setPaintTicks(true);
@@ -41,6 +45,33 @@ public class Slider implements ChangeListener {
         label.setText("Current slider value is:" + slider.getValue());
 
         button.setPreferredSize(new Dimension(BUTTON_WIDTH, BUTTON_HEIGHT));
+        button.addActionListener(e -> {
+
+            Thread sliderValueChangerMax = new Thread(() -> {
+
+                System.out.println("123");
+
+                try {
+                    changeSliderValueMax();
+                } catch (InterruptedException interruptedException) {
+                    interruptedException.printStackTrace();
+                }
+            });
+
+            Thread sliderValueChangerMin = new Thread(() -> {
+
+                System.out.println("321");
+
+                try {
+                    changeSliderValueMin();
+                } catch (InterruptedException interruptedException) {
+                    interruptedException.printStackTrace();
+                }
+            });
+
+            sliderValueChangerMax.start();
+            sliderValueChangerMin.start();
+        });
 
         panel.add(slider);
         panel.add(label);
@@ -51,6 +82,24 @@ public class Slider implements ChangeListener {
         frame.setVisible(true);
     }
 
+    private synchronized void changeSliderValueMax() throws InterruptedException {
+
+        while(sliderValue < MAX_VALUE) {
+            sliderValue++;
+            slider.setValue(sliderValue);
+            wait(400);
+        }
+    }
+
+    private synchronized void changeSliderValueMin() throws InterruptedException {
+
+        while(sliderValue < MAX_VALUE) {
+            sliderValue--;
+            slider.setValue(sliderValue);
+            wait(300);
+        }
+    }
+
     public void setSliderValue(int value) {
         slider.setValue(value);
     }
@@ -59,4 +108,5 @@ public class Slider implements ChangeListener {
     public void stateChanged(ChangeEvent e) {
         label.setText("Current slider value is:" + slider.getValue());
     }
+
 }
