@@ -136,6 +136,7 @@ public class Slider implements ChangeListener {
         });
 
         thread.setPriority(1);
+        thread.setDaemon(true);
         return thread;
     }
 
@@ -150,6 +151,7 @@ public class Slider implements ChangeListener {
         });
 
         thread.setPriority(10);
+        thread.setDaemon(true);
         return thread;
     }
 
@@ -177,6 +179,7 @@ public class Slider implements ChangeListener {
         });
         if(this.threadIncr == null) {
             this.threadIncr = threadIncr;
+            threadIncr.setDaemon(true);
             threadIncr.start();
         }
 
@@ -203,6 +206,7 @@ public class Slider implements ChangeListener {
 
         if(this.threadDecr == null) {
             this.threadDecr = threadDecr;
+            threadDecr.setDaemon(true);
             threadDecr.start();
         }
     }
