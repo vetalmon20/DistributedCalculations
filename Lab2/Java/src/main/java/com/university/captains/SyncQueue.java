@@ -7,43 +7,44 @@ public class SyncQueue {
     private final Queue<Weapon> queue;
     private final int maxSize;
 
-    //private final Object notFull;
-    public final Object notEmpty;
+    public final Object monitor;
 
-    public SyncQueue(int maxSize) {
+    public SyncQueue(int maxSize, Object monitor) {
         this.queue = new LinkedList<>();
         this.maxSize = maxSize;
 
-        //this.notFull = new Object();
-        this.notEmpty = new Object();
+        this.monitor = monitor;
+
     }
 
-    public synchronized void put(Weapon weapon) {
-        while(queue.size() == maxSize) {
-            try {
-                //notFull.wait();
-                notEmpty.wait();
-            } catch (InterruptedException e) {
-                e.printStackTrace();
+    public void put(Weapon weapon) {
+        synchronized (monitor) {
+            while (queue.size() == maxSize) {
+                try {
+                    monitor.wait();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
             }
+            queue.add(weapon);
+            monitor.notifyAll();
         }
-        queue.add(weapon);
-        notEmpty.notifyAll();
     }
 
-    public synchronized Weapon take(){
-        while(queue.size() == 0) {
-            try {
-                notEmpty.wait();
-            } catch (InterruptedException e) {
-                e.printStackTrace();
+    public Weapon take() {
+        synchronized (monitor) {
+            while (queue.size() == 0) {
+                try {
+                    monitor.wait();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
             }
-        }
-        Weapon temp = queue.remove();
-        //notFull.notifyAll();
-        notEmpty.notifyAll();
+            Weapon temp = queue.remove();
+            monitor.notifyAll();
 
-        return temp;
+            return temp;
+        }
     }
 
     public int getSize() {

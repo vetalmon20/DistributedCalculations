@@ -1,10 +1,9 @@
 package com.university.captains;
 
-import java.util.Queue;
-
 public class Main {
-    public static void main(String[] args) {
+    public static void main(String[] args) throws InterruptedException {
         StealingProcess stealingProcess = new StealingProcess();
         stealingProcess.launchStealing();
+
     }
 }
